@@ -1,0 +1,29 @@
+# ─── Node.js dependencies ─────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+*.log
+
+# ─── Build output ────────────────────────────────────────────
+dist/
+
+# ─── Кэши Angular и сборщика ───────────────────────────────
+.angular/
+.cache/
+webpack/
+
+# ─── IDE и системные файлы ─────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ─── Контроль версий ───────────────────────────────────────
+.git/
+.gitignore
+
+# ─── Docker-конфиг и документация ──────────────────────────
+Dockerfile
+docker-compose.yml
+.dockerignore
+*.md

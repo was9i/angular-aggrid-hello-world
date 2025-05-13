@@ -1,10 +1,22 @@
-# docker-compose.yml (положите рядом с папкой angular-aggrid-hello-world)
-version: '3'
-
 services:
-  angular-app:
+  dev:
     build:
       context: .
       dockerfile: Dockerfile
+      target: builder
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    working_dir: /app
+    ports:
+      - "4200:4200"
+    command: >
+      sh -c "npm ci && npm run start -- --host 0.0.0.0"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
     ports:
       - "8080:80"

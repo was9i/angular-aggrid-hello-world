@@ -1,33 +1,37 @@
-# ─── Этап 1: сборка Angular ────────────────────────────────────────────────
+# ─── Этап 1: сборка приложения ───────────────────────────────────────
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# только prod-зависимости и чистый кэш
+# копируем только манифесты, ставим ВСЕ deps (т.к. нужен @angular/cli для ng build)
 COPY package.json package-lock.json ./
-RUN npm ci --only=production \
- && npm cache clean --force
+RUN npm ci \
+  && npm cache clean --force
 
-# копируем исходники и собираем
+# теперь копируем весь исходный код приложения
 COPY . .
-RUN npm run build
 
-# ─── Этап 2: nginx для отдачи статики ───────────────────────────────────────
-FROM nginx:alpine AS runner
+# билдим в production-режиме
+RUN npm run build -- --configuration=production
 
-# (опционально) удаляем дефолтный конфиг, если вы поставили свой
+# после сборки можно «пробросить» только прод-зависимости
+RUN npm prune --production
+
+# ─── Этап 2: nginx для отдачи статики ─────────────────────────────
+FROM nginx:1.25.4-alpine AS runner
+
+# удалим дефолтный конфиг, если будет свой
 RUN rm /etc/nginx/conf.d/default.conf
 
-# копируем ваш nginx.conf (если он у вас есть)
+# копируем наш nginx.conf
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# копируем сборку из builder
+# отдадим собранную статику
 COPY --from=builder /app/dist/angular-aggrid-hello-world /usr/share/nginx/html
 
-# выставляем права на статику (nginx в образе сам запустится от пользователя nginx)
+# выставляем права
 RUN chown -R nginx:nginx /usr/share/nginx/html
 
 EXPOSE 80
 
-# CMD по-умолчанию уже запустит nginx в форграунде
 CMD ["nginx", "-g", "daemon off;"]
