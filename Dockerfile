@@ -1,61 +1,33 @@
-# Этап 1: Сборка Angular приложения
-FROM node:20.11.1-alpine3.19 AS builder
+# ─── Этап 1: сборка Angular ────────────────────────────────────────────────
+FROM node:20-alpine AS builder
 
-# Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Устанавливаем необходимые пакеты безопасности
-RUN apk add --no-cache --upgrade apk-tools && \
-    apk upgrade --no-cache && \
-    apk add --no-cache tini
-
-# Копируем package.json и package-lock.json
+# только prod-зависимости и чистый кэш
 COPY package.json package-lock.json ./
+RUN npm ci --only=production \
+ && npm cache clean --force
 
-# Устанавливаем зависимости с безопасными настройками
-RUN npm ci --only=production --audit=false --fund=false && \
-    npm cache clean --force
-
-# Копируем все файлы проекта
+# копируем исходники и собираем
 COPY . .
-
-# Сборка приложения
 RUN npm run build
 
-# Этап 2: Сервер на основе NGINX
-FROM nginx:1.25.3-alpine-slim AS runner
+# ─── Этап 2: nginx для отдачи статики ───────────────────────────────────────
+FROM nginx:alpine AS runner
 
-# Устанавливаем необходимые пакеты безопасности
-RUN apk add --no-cache --upgrade apk-tools && \
-    apk upgrade --no-cache && \
-    apk add --no-cache tini
+# (опционально) удаляем дефолтный конфиг, если вы поставили свой
+RUN rm /etc/nginx/conf.d/default.conf
 
-# Устанавливаем пользователя без прав root
-RUN adduser -D -H -u 101 -s /sbin/nologin nginx && \
-    chown -R nginx:nginx /var/cache/nginx && \
-    chown -R nginx:nginx /var/log/nginx && \
-    chown -R nginx:nginx /etc/nginx/conf.d && \
-    touch /var/run/nginx.pid && \
-    chown -R nginx:nginx /var/run/nginx.pid
-
-# Копируем сборку приложения из предыдущего этапа
-COPY --from=builder /app/dist/angular-aggrid-hello-world /usr/share/nginx/html
-
-# Копируем файл конфигурации NGINX
+# копируем ваш nginx.conf (если он у вас есть)
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Устанавливаем правильные разрешения
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
-    chmod -R 755 /usr/share/nginx/html && \
-    chmod -R 755 /var/cache/nginx && \
-    chmod -R 755 /var/log/nginx
+# копируем сборку из builder
+COPY --from=builder /app/dist/angular-aggrid-hello-world /usr/share/nginx/html
 
-# Открываем порт 80
+# выставляем права на статику (nginx в образе сам запустится от пользователя nginx)
+RUN chown -R nginx:nginx /usr/share/nginx/html
+
 EXPOSE 80
 
-# Переключаемся на непривилегированного пользователя
-USER nginx
-
-# Используем tini как init процесс
-ENTRYPOINT ["/sbin/tini", "--"]
+# CMD по-умолчанию уже запустит nginx в форграунде
 CMD ["nginx", "-g", "daemon off;"]

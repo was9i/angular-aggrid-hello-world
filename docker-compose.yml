@@ -1,6 +1,10 @@
+# docker-compose.yml (положите рядом с папкой angular-aggrid-hello-world)
 version: '3'
+
 services:
   angular-app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8080:80"
